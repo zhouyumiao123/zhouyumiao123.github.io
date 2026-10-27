@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#f6efdc" />
+  <title>拾帧 · 灵感工作台</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#" aria-label="拾帧首页">
+        <span class="brand-mark"><i></i><i></i><i></i></span>
+        <span><b>拾帧</b><small>灵感小屋</small></span>
+      </a>
+      <div class="side-label">工作台</div>
+      <nav class="main-nav" aria-label="主导航">
+        <button class="nav-item active" data-view="all"><span class="nav-icon">▦</span><span>全部灵感</span><span class="nav-count" id="allCount">12</span></button>
+        <button class="nav-item" data-view="favorites"><span class="nav-icon">♡</span><span>我的收藏</span></button>
+        <button class="nav-item" data-view="recent"><span class="nav-icon">◷</span><span>最近记录</span></button>
+      </nav>
+      <div class="side-divider"></div>
+      <div class="side-heading"><span class="side-label">项目空间</span><button class="tiny-add" id="addProject" aria-label="添加项目">＋</button></div>
+      <nav class="project-nav" id="projectNav" aria-label="项目空间"></nav>
+      <div class="side-divider"></div>
+      <div class="side-label">灵感标签</div>
+      <div class="tag-cloud" id="tagCloud"></div>
+      <div class="sidebar-bottom">
+        <div class="sync-state"><span class="sync-dot"></span><span>已保存在此设备</span></div>
+        <div class="profile-button"><span class="avatar" aria-hidden="true">✿</span><span class="profile-copy"><b>我的小屋</b></span></div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <button class="mobile-menu icon-button" id="mobileMenu" aria-label="打开导航">☰</button>
+        <div class="breadcrumbs"><span>工作台</span><span class="crumb-slash">/</span><b id="currentView">全部灵感</b></div>
+        <div class="top-actions">
+          <label class="search-box"><span class="search-icon">⌕</span><input id="searchInput" type="search" placeholder="搜索灵感、标签…" /><kbd>⌘ K</kbd></label>
+          <button class="new-button" id="newCard"><span>＋</span> 新建灵感</button>
+        </div>
+      </header>
+
+      <section class="workspace">
+        <div class="welcome-row"><h1>灵感库</h1><div class="garden-controls"><span class="garden-status"><span aria-hidden="true">✦</span> 本周新增 <b id="weekCount">08</b></span><button class="garden-toggle" id="gardenToggle" aria-expanded="true" aria-controls="inspirationGarden">收起花园 ▴</button></div></div>
+
+        <section class="inspiration-garden" id="inspirationGarden" aria-label="灵感互动场景">
+          <article class="little-scene garden-scene">
+            <div class="scene-stage">
+              <svg class="scene-art" viewBox="0 0 240 94" preserveAspectRatio="xMidYMax slice" aria-hidden="true" shape-rendering="crispEdges">
+                <path fill="#d7e9d0" d="M0 0h240v94H0z"/>
+                <path fill="#fdf5c8" d="M184 12h16v4h4v16h-4v4h-16v-4h-4V16h4z"/>
+                <path fill="#f9f6e6" d="M19 20h24v-4h20v4h8v8H11v-4h8zm106 21h20v-4h20v4h12v8h-60v-4h8z"/>
+                <path fill="#b1c894" d="M0 65h20v-8h24v-5h20v8h24v9h30v-8h22v-9h20v8h24v7h24v-9h32v36H0z"/>
+                <path fill="#8faa72" d="M0 76h30v-8h24v6h20v8h34v-7h24v-8h28v8h28v7h22v-7h30v19H0z"/>
+                <path fill="#e9cf9b" d="M0 88h240v6H0z"/>
+                <path fill="#82785a" d="M28 83h20v-4H28zm67 0h20v-4H95zm64 0h20v-4h-20z"/>
+                <path fill="#608558" d="M38 62h4v18h-4zm67 0h4v18h-4zm64 0h4v18h-4zM30 67h8v5h-8zm12 6h8v4h-8zm55 2h8v4h-8zm12-9h8v5h-8zm52 1h8v5h-8zm12 6h8v4h-8z"/>
+                <g fill="#e7a4b3"><path d="M34 49h12v4h4v12h-4v4H34v-4h-4V53h4z"/><path d="M165 49h12v4h4v12h-4v4h-12v-4h-4V53h4z"/></g>
+                <path fill="#f6dc8e" d="M101 49h12v4h4v12h-4v4h-12v-4h-4V53h4z"/>
+                <path fill="#fff2cc" d="M36 56h8v7h-8zm131 0h8v7h-8z"/><path fill="#b88f61" d="M103 56h8v7h-8z"/>
+                <path fill="#638b62" d="M205 72h8v-5h4v5h8v4h-8v11h-4V76h-8z"/>
+              </svg>
+              <button class="scene-hotspot flower-hotspot" id="pickFlower" aria-label="点击花朵抽取灵感">✦</button>
+              <span class="scene-sign">灵感花圃</span>
+            </div>
+            <div class="scene-content"><h2>摘一朵灵感</h2><p class="scene-result" id="flowerResult" aria-live="polite">用一个声音，连接两个完全不同的地方。</p><div class="scene-actions"><button class="pixel-button" id="flowerShuffle">换一朵 ↻</button><button class="text-button" id="flowerUse">记下想法 ＋</button></div></div>
+          </article>
+
+          <article class="little-scene workbench-scene">
+            <div class="scene-stage">
+              <svg class="scene-art" viewBox="0 0 240 94" preserveAspectRatio="xMidYMax slice" aria-hidden="true" shape-rendering="crispEdges">
+                <path fill="#f1dfd9" d="M0 0h240v94H0z"/><path fill="#e6c6c0" d="M0 66h240v28H0z"/>
+                <path fill="#a97a74" d="M16 67h208v7H16zM24 74h8v20h-8zm184 0h8v20h-8z"/>
+                <path fill="#734d65" d="M80 20h68v4h4v42H76V24h4z"/>
+                <path fill="#fff5dc" d="M82 26h64v34H82z"/><path fill="#aac2aa" d="M86 30h19v19H86zm23 0h33v19h-33z"/>
+                <path fill="#d98ba3" d="M86 53h25v4H86z"/><path fill="#b4a4c6" d="M115 53h27v4h-27z"/>
+                <path fill="#bd9890" d="M94 63h48v4H94z"/>
+                <path fill="#7c526b" d="M179 42h25v25h-25zm25 4h6v15h-6z"/><path fill="#f6e6c9" d="M183 46h17v17h-17z"/>
+                <path class="steam" fill="#fff6e4" d="M185 30h3v7h-3zm9-6h3v11h-3z"/>
+                <path fill="#a3b78d" d="M31 38h8v7h-8zm9-13h7v21h-7zm8 7h8v10h-8z"/>
+                <path fill="#c48d73" d="M32 47h23v4h-3v16H35V51h-3z"/>
+                <path fill="#fff3cb" d="M18 12h35v3H18zm150 5h45v3h-45z"/>
+              </svg>
+              <button class="scene-hotspot dice-hotspot" id="rollDice" aria-label="掷骰子生成剪辑练习">⚄</button>
+              <span class="scene-sign">剪辑工作台</span>
+            </div>
+            <div class="scene-content"><h2>掷个剪辑练习</h2><p class="scene-result" id="diceResult" aria-live="polite">3 个镜头 × 动作匹配 × 惊喜</p><div class="scene-actions"><button class="pixel-button" id="diceShuffle">掷骰子 ⚄</button><button class="text-button" id="diceUse">记录练习 ＋</button></div></div>
+          </article>
+
+          <article class="little-scene chest-scene">
+            <div class="scene-stage">
+              <svg class="scene-art" viewBox="0 0 240 94" preserveAspectRatio="xMidYMax slice" aria-hidden="true" shape-rendering="crispEdges">
+                <path fill="#dce0ef" d="M0 0h240v94H0z"/><path fill="#bec3d9" d="M0 70h240v24H0z"/>
+                <path fill="#faf2d1" d="M32 13h4v-4h4v4h4v4h-4v4h-4v-4h-4zm161 13h4v-4h4v4h4v4h-4v4h-4v-4h-4z"/>
+                <path fill="#fff8e3" d="M98 18h42v4h6v36H92V22h6z"/><path fill="#c1d4af" d="M98 24h42v27H98z"/>
+                <path fill="#e6c0c8" d="M120 35h39v4h6v35h-51V39h6z"/><path fill="#fff4d9" d="M120 41h39v26h-39z"/>
+                <path fill="#765469" d="M67 57h99v6h6v23H61V63h6z"/><path fill="#ba9274" d="M67 63h99v17H67z"/>
+                <path fill="#e7bc80" d="M67 67h99v5H67z"/><path fill="#765469" d="M109 63h16v17h-16z"/><path fill="#f7dc98" d="M113 65h8v10h-8z"/>
+                <path fill="#9aa8bd" d="M33 79h8v-8h4v8h8v4h-8v7h-4v-7h-8zm161-5h7v-8h4v8h7v4h-7v10h-4V78h-7z"/>
+              </svg>
+              <button class="scene-hotspot chest-hotspot" id="openChest" aria-label="随机抽取两张已有卡片">✧</button>
+              <span class="scene-sign">灵感宝箱</span>
+            </div>
+            <div class="scene-content"><h2>让收藏碰个面</h2><div class="scene-result chest-result" id="chestResult" aria-live="polite">抽两张旧卡片，试着组合新想法。</div><div class="scene-actions"><button class="pixel-button" id="chestShuffle">开宝箱 ✧</button><button class="text-button" id="chestUse" disabled>组合成灵感 ＋</button></div></div>
+          </article>
+        </section>
+
+        <div class="section-toolbar">
+          <div class="section-title"><h2>全部卡片</h2><span class="result-count" id="resultCount">12 条</span></div>
+          <div class="toolbar-controls">
+            <div class="filter-pills" id="typeFilters">
+              <button class="filter-pill selected" data-type="all">全部</button>
+              <button class="filter-pill" data-type="video">视频</button>
+              <button class="filter-pill" data-type="image">影像</button>
+              <button class="filter-pill" data-type="technique">剪辑手法</button>
+              <button class="filter-pill" data-type="note">手记</button>
+            </div>
+            <button class="sort-button" id="sortButton"><span>↓</span> 最近添加</button>
+            <div class="view-toggle"><button class="view-btn selected" data-layout="grid" aria-label="网格视图">▦</button><button class="view-btn" data-layout="list" aria-label="列表视图">☰</button></div>
+          </div>
+        </div>
+        <div class="active-filters" id="activeFilters"></div>
+        <div class="card-grid" id="cardGrid"></div>
+        <div class="empty-state" id="emptyState" hidden><span>⌕</span><h3>没有匹配的卡片</h3><button class="new-button" id="emptyNew">＋ 新建灵感</button></div>
+        <footer class="workspace-footer"><span><b id="footerCount">12</b> 张卡片</span></footer>
+      </section>
+    </main>
+  </div>
+
+  <div class="overlay" id="overlay"></div>
+  <aside class="detail-panel" id="detailPanel" aria-label="灵感详情"></aside>
+  <div class="modal-backdrop" id="modalBackdrop">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-head"><div><h2 id="modalTitle">新建灵感</h2></div><button class="icon-button close-modal" id="closeModal" aria-label="关闭">×</button></div>
+      <form id="cardForm">
+        <label class="field-label">标题 <span>必填</span><input class="text-input" id="titleInput" required maxlength="60" placeholder="给灵感起个名字" /></label>
+        <label class="field-label">内容<textarea class="text-input textarea" id="noteInput" rows="4" placeholder="写下想法…"></textarea></label>
+        <div class="auto-classify"><span class="auto-spark" aria-hidden="true">✳</span><b>自动归类</b><span class="auto-chip" id="autoChip">等待输入</span></div>
+        <label class="field-label">来源链接 <span>选填</span><input class="text-input" id="sourceInput" type="url" placeholder="粘贴链接（可不填）" /></label>
+        <div class="modal-actions"><button type="button" class="cancel-button" id="cancelModal">取消</button><button class="new-button save-button" type="submit"><span>＋</span> 保存灵感</button></div>
+      </form>
+    </section>
+  </div>
+  <div class="toast" id="toast"><span>✓</span><b>灵感已收好</b></div>
+  <script src="app.js"></script>
+</body>
+</html>
