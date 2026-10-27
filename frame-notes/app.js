@@ -495,3 +495,6 @@ const authenticate = async (createAccount) => {
 $('#signUpButton').addEventListener('click', () => authenticate(true));
 $('#signInButton').addEventListener('click', () => authenticate(false));
 initCloudSync();
+if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
