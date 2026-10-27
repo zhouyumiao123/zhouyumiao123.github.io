@@ -1,4 +1,6 @@
 const image = (id, w = 900) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&q=82`;
+const SUPABASE_URL = 'https://myondesuebvxcztfwuyl.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_XGjJqMt7N5tigY381QrOvQ_8u4xGSl8';
 const seedCards = [
   { id: 'a1', type: 'video', title: '海边公路，镜头跟着风走', note: '不是追着人物拍，是让海风先走一步。长焦压缩空间，留一点呼吸感。', tags: ['运镜', '公路片', '松弛感'], project: '在路上', date: '10.26', fullDate: '2026-10-26', image: image('photo-1500530855697-b586d89ba3ee'), duration: '00:18', source: 'https://www.youtube.com/' },
   { id: 'a2', type: 'image', title: '雨后的京都，红色刚好', note: '湿润的路面像第二层天空。红色只出现一次，反而更记得住。', tags: ['色彩', '街头', '氛围'], project: '城市散步', date: '10.25', fullDate: '2026-10-25', image: image('photo-1519501025264-65ba15a82390'), duration: '' },
@@ -18,6 +20,7 @@ const seedCards = [
 const seedProjects = ['在路上', '城市散步', '日常切片', '剪辑手法', '未分类'];
 const typeNames = { video: '视频', image: '影像', technique: '剪辑手法', note: '手记' };
 const read = (key, fallback) => { try { const parsed = JSON.parse(localStorage.getItem(key)); return parsed ?? fallback; } catch { return fallback; } };
+const hasLocalSnapshot = localStorage.getItem('frame-notes-cards') !== null;
 let cards = read('frame-notes-cards', seedCards);
 let projects = read('frame-notes-projects', seedProjects);
 let favorites = read('frame-notes-favorites', ['a1', 'a5', 'a8']);
@@ -29,16 +32,109 @@ let searchTerm = '';
 let oldestFirst = false;
 let selectedId = null;
 let layout = 'grid';
+let cloud = null;
+let cloudUser = null;
+let syncTimer = null;
+let localSyncOwner = localStorage.getItem('frame-notes-sync-owner') || '';
 if (!projects.includes('剪辑手法')) projects.splice(Math.max(0, projects.length - 1), 0, '剪辑手法');
 if (!cards.some((card) => card.type === 'technique')) cards = [...cards, ...seedCards.filter((card) => card.type === 'technique')];
 
 const $ = (selector) => document.querySelector(selector);
 const cardGrid = $('#cardGrid');
 const escapeHtml = (value = '') => String(value).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+const cloudState = () => ({ cards, projects, favorites });
+const setSyncStatus = (label, state = '') => {
+  $('#syncStatus').textContent = label;
+  $('#syncDot').className = `sync-dot ${state}`.trim();
+};
+const readCoverImage = async (file) => {
+  if (!file) return '';
+  if (!file.type.startsWith('image/')) throw new Error('请选择图片文件');
+  if (file.size > 15 * 1024 * 1024) throw new Error('图片太大，请选择 15MB 以内的图片');
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, 1000 / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return canvas.toDataURL('image/jpeg', 0.78);
+};
 const save = () => {
   localStorage.setItem('frame-notes-cards', JSON.stringify(cards));
   localStorage.setItem('frame-notes-projects', JSON.stringify(projects));
   localStorage.setItem('frame-notes-favorites', JSON.stringify(favorites));
+  if (cloud && cloudUser) {
+    setSyncStatus('正在同步…', 'syncing');
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(syncToCloud, 500);
+  }
+};
+const syncToCloud = async () => {
+  if (!cloud || !cloudUser) return;
+  const { error } = await cloud.from('frame_notes_data').upsert({
+    user_id: cloudUser.id,
+    state: cloudState(),
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'user_id' });
+  if (error) {
+    setSyncStatus('同步失败', 'sync-error');
+    showToast('云端同步失败，请检查网络或数据库设置');
+    return;
+  }
+  setSyncStatus('已同步到云端', 'synced');
+};
+const loadCloudState = async (user) => {
+  cloudUser = user;
+  $('#authButtonText').textContent = '退出登录';
+  setSyncStatus('正在读取云端…', 'syncing');
+  const { data, error } = await cloud.from('frame_notes_data').select('state').eq('user_id', user.id).maybeSingle();
+  if (error) {
+    cloudUser = null;
+    $('#authButtonText').textContent = '登录以同步';
+    setSyncStatus('云端未就绪', 'sync-error');
+    showToast('请先完成 Supabase 数据表设置');
+    return;
+  }
+  if (localSyncOwner && localSyncOwner !== user.id) {
+    cards = seedCards.slice();
+    projects = seedProjects.slice();
+    favorites = ['a1', 'a5', 'a8'];
+  }
+  if (data?.state) {
+    const remote = data.state;
+    const localCards = hasLocalSnapshot && (!localSyncOwner || localSyncOwner === user.id) ? cards : [];
+    const remoteCards = Array.isArray(remote.cards) ? remote.cards : [];
+    const merged = new Map(remoteCards.map((card) => [card.id, card]));
+    localCards.forEach((card) => { if (!merged.has(card.id)) merged.set(card.id, card); });
+    cards = [...merged.values()];
+    projects = [...new Set([...(Array.isArray(remote.projects) ? remote.projects : []), ...(hasLocalSnapshot ? projects : [])])];
+    favorites = [...new Set([...(Array.isArray(remote.favorites) ? remote.favorites : []), ...(hasLocalSnapshot ? favorites : [])])];
+  }
+  localSyncOwner = user.id;
+  localStorage.setItem('frame-notes-sync-owner', user.id);
+  save();
+  render();
+  await syncToCloud();
+};
+const initCloudSync = async () => {
+  if (!window.supabase?.createClient) {
+    setSyncStatus('云同步加载失败', 'sync-error');
+    return;
+  }
+  cloud = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  const { data, error } = await cloud.auth.getSession();
+  if (error) { setSyncStatus('暂未登录'); return; }
+  cloud.auth.onAuthStateChange((_event, session) => {
+    if (_event === 'INITIAL_SESSION') return;
+    if (session?.user) queueMicrotask(() => loadCloudState(session.user));
+    else {
+      cloudUser = null;
+      $('#authButtonText').textContent = '登录以同步';
+      setSyncStatus('仅保存在此设备');
+    }
+  });
+  if (data.session?.user) await loadCloudState(data.session.user);
 };
 const updateCounts = () => {
   $('#allCount').textContent = cards.length;
@@ -111,6 +207,7 @@ const renderCards = () => {
   cardGrid.classList.toggle('list-layout', layout === 'list');
   cardGrid.innerHTML = items.map((card) => `<article class="inspiration-card ${card.type === 'note' ? 'note-card' : ''} ${card.type === 'technique' ? 'technique-card' : ''}" data-card="${escapeHtml(card.id)}" tabindex="0">
     <button class="favorite-button ${favorites.includes(card.id) ? 'active' : ''}" data-favorite="${escapeHtml(card.id)}" aria-label="${favorites.includes(card.id) ? '取消收藏' : '收藏'}">${favorites.includes(card.id) ? '♥' : '♡'}</button>
+    <button class="delete-card-button" data-delete-card="${escapeHtml(card.id)}" aria-label="删除这条灵感" title="删除这条灵感">⌫</button>
     <div class="card-media">${mediaContent(card)}</div>
     <div class="card-content"><div class="card-heading"><span class="card-type">${typeNames[card.type]}</span><span class="card-date">${escapeHtml(card.date)}</span></div><h3 class="card-title">${escapeHtml(card.title)}</h3><p class="card-note">${escapeHtml(card.note)}</p><div class="card-meta"><div class="card-tags">${card.tags.slice(0, 3).map((tag) => `<span class="card-tag">${escapeHtml(tag)}</span>`).join('')}</div></div></div>
   </article>`).join('');
@@ -241,6 +338,18 @@ const openDetail = (id) => {
 };
 
 document.addEventListener('click', (event) => {
+  const deleteButton = event.target.closest('[data-delete-card]');
+  if (deleteButton) {
+    event.stopPropagation();
+    const id = deleteButton.dataset.deleteCard;
+    const card = cards.find((item) => item.id === id);
+    if (!card || !window.confirm(`确定删除「${card.title}」吗？`)) return;
+    cards = cards.filter((item) => item.id !== id);
+    favorites = favorites.filter((favorite) => favorite !== id);
+    if (chestIds.includes(id)) chestIds = chestIds.filter((relatedId) => relatedId !== id);
+    save(); render(); showToast('已删除这条灵感');
+    return;
+  }
   const favoriteButton = event.target.closest('[data-favorite]');
   if (favoriteButton) {
     event.stopPropagation();
@@ -273,10 +382,20 @@ $('#emptyNew').addEventListener('click', () => openModal());
 $('#closeModal').addEventListener('click', closeModal);
 $('#cancelModal').addEventListener('click', closeModal);
 $('#modalBackdrop').addEventListener('click', (event) => { if (event.target === $('#modalBackdrop')) closeModal(); });
-$('#cardForm').addEventListener('submit', (event) => {
+$('#cardForm').addEventListener('submit', async (event) => {
   event.preventDefault();
   const title = $('#titleInput').value.trim();
   if (!title) return;
+  const saveButton = $('.save-button');
+  saveButton.disabled = true;
+  let cover = '';
+  try {
+    cover = await readCoverImage($('#coverInput').files[0]);
+  } catch (error) {
+    showToast(error.message || '封面图片读取失败');
+    saveButton.disabled = false;
+    return;
+  }
   const now = new Date();
   const note = $('#noteInput').value.trim() || '留给未来的自己，一条还没展开的灵感。';
   const source = $('#sourceInput').value.trim();
@@ -286,13 +405,13 @@ $('#cardForm').addEventListener('submit', (event) => {
     id: `n${Date.now()}`, type, title, note, tags: auto.tags, project: auto.project, date: `${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`,
     fullDate: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`, source,
     relatedIds: draftRelatedIds.slice(),
-    ...(type === 'note' ? { paper: title } : type === 'technique' ? { technique: `${auto.tags[0] || 'EDITING NOTE'}\n剪辑手法` } : { image: image(type === 'video' ? 'photo-1493246507139-91e8fad9978e' : 'photo-1470252649378-9c29740c9fa8'), duration: '00:18' })
+    ...(type === 'note' ? { paper: title } : type === 'technique' ? { technique: `${auto.tags[0] || 'EDITING NOTE'}\n剪辑手法` } : { image: cover || image(type === 'video' ? 'photo-1493246507139-91e8fad9978e' : 'photo-1470252649378-9c29740c9fa8'), duration: '00:18' })
   };
   cards.unshift(card); save(); view = 'all'; filterType = 'all'; filterTag = ''; filterProject = ''; $('#searchInput').value = ''; searchTerm = '';
   document.querySelectorAll('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.view === 'all'));
   document.querySelectorAll('.filter-pill').forEach((button) => button.classList.toggle('selected', button.dataset.type === 'all'));
   $('#currentView').textContent = '全部灵感';
-  closeModal(); render(); showToast('灵感已收好');
+  closeModal(); saveButton.disabled = false; render(); showToast(cover ? '封面和灵感已收好' : '灵感已收好');
 });
 $('#searchInput').addEventListener('input', (event) => { searchTerm = event.target.value; renderCards(); });
 ['titleInput', 'noteInput', 'sourceInput'].forEach((id) => $(`#${id}`).addEventListener('input', updateAutoClassification));
@@ -342,3 +461,37 @@ document.addEventListener('click', (event) => {
   if (window.innerWidth <= 820 && $('#sidebar').classList.contains('open') && !event.target.closest('#sidebar') && !event.target.closest('#mobileMenu')) $('#sidebar').classList.remove('open');
 });
 render();
+$('#authButton').addEventListener('click', async () => {
+  if (cloudUser) {
+    if (!window.confirm('退出后，这台设备将不再同步。确定退出吗？')) return;
+    const { error } = await cloud.auth.signOut();
+    if (error) showToast('退出失败，请稍后再试');
+    return;
+  }
+  $('#authBackdrop').classList.add('open');
+  $('#authEmail').focus();
+});
+const closeAuth = () => {
+  $('#authBackdrop').classList.remove('open');
+  $('#authPassword').value = '';
+};
+$('#closeAuth').addEventListener('click', closeAuth);
+$('#authBackdrop').addEventListener('click', (event) => { if (event.target === $('#authBackdrop')) closeAuth(); });
+const authenticate = async (createAccount) => {
+  const email = $('#authEmail').value.trim();
+  const password = $('#authPassword').value;
+  if (!email || password.length < 8) { showToast('请输入邮箱和至少 8 位密码'); return; }
+  const buttons = [$('#signUpButton'), $('#signInButton')];
+  buttons.forEach((button) => { button.disabled = true; });
+  const result = createAccount
+    ? await cloud.auth.signUp({ email, password, options: { emailRedirectTo: window.location.href } })
+    : await cloud.auth.signInWithPassword({ email, password });
+  buttons.forEach((button) => { button.disabled = false; });
+  if (result.error) { showToast(createAccount ? '创建失败，请检查邮箱或密码' : '登录失败，请检查邮箱和密码'); return; }
+  closeAuth();
+  if (createAccount && !result.data.session) showToast('账号已创建，请查收邮箱并完成验证');
+  else showToast(createAccount ? '账号已创建，正在同步' : '登录成功，正在同步');
+};
+$('#signUpButton').addEventListener('click', () => authenticate(true));
+$('#signInButton').addEventListener('click', () => authenticate(false));
+initCloudSync();
